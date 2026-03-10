@@ -1,6 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ReferenceDot,
+} from "recharts";
+
+interface ValidationArtifact {
+  agentId: string;
+  action: string;
+  reason: string;
+  confidence: number;
+  priceChange: number;
+  timestamp: string;
+  hash: string;
+}
 
 interface TradeDecision {
   decision: "BUY" | "SELL" | "HOLD";
@@ -10,6 +29,7 @@ interface TradeDecision {
   priceChange: number;
   currentPrice: number;
   txHash: string | null;
+  validation?: ValidationArtifact;
 }
 
 const decisionColors: Record<string, { bg: string; text: string; ring: string }> = {
@@ -30,6 +50,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(30);
+  const [modalItem, setModalItem] = useState<TradeDecision | null>(null);
 
   const fetchTrade = async () => {
     try {
@@ -145,6 +166,91 @@ export default function Home() {
               </p>
             </div>
 
+            {/* Price Chart */}
+            {history.length > 1 && (
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-4">Price History</p>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={[...history].reverse().map((item) => ({
+                        time: new Date(item.timestamp).toLocaleTimeString(),
+                        price: item.currentPrice,
+                        decision: item.decision,
+                      }))}
+                      margin={{ top: 5, right: 10, left: 10, bottom: 5 }}
+                    >
+                      <defs>
+                        <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
+                          <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis
+                        dataKey="time"
+                        tick={{ fill: "#6b7280", fontSize: 11 }}
+                        axisLine={{ stroke: "#374151" }}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        domain={["auto", "auto"]}
+                        tick={{ fill: "#6b7280", fontSize: 11 }}
+                        axisLine={{ stroke: "#374151" }}
+                        tickLine={false}
+                        tickFormatter={(v: number) => `$${v.toLocaleString()}`}
+                        width={80}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#1f2937",
+                          border: "1px solid #374151",
+                          borderRadius: "0.75rem",
+                          color: "#f3f4f6",
+                          fontSize: 13,
+                        }}
+                        formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, "ETH Price"]}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="price"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        fill="url(#priceGradient)"
+                      />
+                      {[...history].reverse().map((item, i) => {
+                        if (item.decision === "HOLD") return null;
+                        return (
+                          <ReferenceDot
+                            key={`dot-${item.timestamp}-${i}`}
+                            x={new Date(item.timestamp).toLocaleTimeString()}
+                            y={item.currentPrice}
+                            r={6}
+                            fill={item.decision === "BUY" ? "#10b981" : "#ef4444"}
+                            stroke={item.decision === "BUY" ? "#065f46" : "#7f1d1d"}
+                            strokeWidth={2}
+                          />
+                        );
+                      })}
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex items-center gap-4 mt-3 justify-center">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span className="text-xs text-gray-500">BUY</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                    <span className="text-xs text-gray-500">SELL</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-6 h-0.5 bg-blue-500 rounded" />
+                    <span className="text-xs text-gray-500">Price</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* History */}
             {history.length > 1 && (
               <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
@@ -166,6 +272,15 @@ export default function Home() {
                       <span className="text-xs text-gray-500 whitespace-nowrap font-mono">
                         ${item.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
+                      <button
+                        onClick={() => setModalItem(item)}
+                        className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors whitespace-nowrap cursor-pointer"
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Verify
+                      </button>
                       {item.txHash ? (
                         <a
                           href={`https://sepolia.etherscan.io/tx/${item.txHash}`}
@@ -192,6 +307,90 @@ export default function Home() {
           </>
         ) : null}
       </main>
+
+      {/* Verification Modal */}
+      {modalItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setModalItem(null)}
+        >
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-gray-100">On-Chain Verification</h2>
+              <button
+                onClick={() => setModalItem(null)}
+                className="text-gray-500 hover:text-gray-300 transition-colors cursor-pointer text-xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Verified Badge */}
+            <div className="flex items-center gap-3 mb-6 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3">
+              <svg className="w-6 h-6 text-emerald-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span className="text-emerald-400 font-semibold">Verified on Sepolia Blockchain</span>
+            </div>
+
+            {/* Decision Details */}
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500 uppercase">Action</span>
+                <span className={`text-sm font-bold px-3 py-1 rounded-full ring-1 ${decisionColors[modalItem.decision].bg} ${decisionColors[modalItem.decision].text} ${decisionColors[modalItem.decision].ring}`}>
+                  {modalItem.decision}
+                </span>
+              </div>
+              <div className="flex justify-between items-start gap-4">
+                <span className="text-xs text-gray-500 uppercase shrink-0">Reason</span>
+                <span className="text-sm text-gray-300 text-right">{modalItem.reason}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-gray-500 uppercase">Confidence</span>
+                <span className="text-sm text-gray-300">{modalItem.confidence}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-gray-500 uppercase">Timestamp</span>
+                <span className="text-sm text-gray-300">{new Date(modalItem.timestamp).toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Validation Hash */}
+            {modalItem.validation && (
+              <div className="mb-6">
+                <p className="text-xs text-gray-500 uppercase mb-1">Validation Hash (SHA-256)</p>
+                <p className="text-xs font-mono text-blue-400 bg-gray-800 rounded-lg px-3 py-2 break-all">
+                  {modalItem.validation.hash}
+                </p>
+              </div>
+            )}
+
+            {/* Etherscan Link */}
+            {modalItem.txHash && (
+              <a
+                href={`https://sepolia.etherscan.io/tx/${modalItem.txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-blue-400 rounded-xl px-4 py-3 text-sm font-medium transition-colors mb-6"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 0L6.59 1.41 12.17 7H0v2h12.17l-5.58 5.59L8 16l8-8-8-8z" />
+                </svg>
+                View Transaction on Etherscan
+              </a>
+            )}
+
+            {/* Explanation */}
+            <p className="text-xs text-gray-500 leading-relaxed">
+              This decision was cryptographically signed and recorded on-chain. The hash proves this exact decision was made at this exact time and cannot be altered.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-gray-800 mt-12">

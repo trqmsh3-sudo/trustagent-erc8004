@@ -3,6 +3,7 @@ import { getETHPrice } from "@/lib/priceService";
 import { makeTradeDecision } from "@/lib/agent";
 import { buildValidationArtifact } from "@/lib/erc8004";
 import { recordValidation } from "@/lib/blockchain";
+import { executeSwap } from "@/lib/uniswap";
 
 let previousPrice: number | null = null;
 
@@ -32,6 +33,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    let swapTxHash: string | null = null;
+    let swapError: string | undefined;
+
+    if (decision.decision !== "HOLD") {
+      if (mock) {
+        swapTxHash = `0xSWAP_MOCK_${Date.now()}`;
+      } else {
+        try {
+          swapTxHash = await executeSwap(decision.decision, 0.001);
+        } catch (err) {
+          swapError =
+            err instanceof Error ? err.message : "Swap execution failed";
+        }
+      }
+    }
+
     previousPrice = currentPrice;
 
     return NextResponse.json({
@@ -40,6 +57,8 @@ export async function GET(request: NextRequest) {
       validation,
       txHash,
       ...(blockchainError && { blockchainError }),
+      swapTxHash,
+      ...(swapError && { swapError }),
     });
   } catch (error) {
     const message =

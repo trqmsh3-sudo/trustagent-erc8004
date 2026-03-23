@@ -23,6 +23,4 @@ export async function recordValidation(hash: string): Promise<string> {
     const message = error instanceof Error ? error.message : 'Failed to record validation';
     throw new Error(`Blockchain validation failed: ${message}`);
   }
-    throw new Error(`Blockchain validation failed: ${message}`);
-  }
 }

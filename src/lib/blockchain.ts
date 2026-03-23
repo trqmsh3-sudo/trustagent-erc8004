@@ -1,4 +1,4 @@
-import { ethers } from "ethers";
+import { ethers } from 'ethers';
 
 export function getWallet() {
   const provider = new ethers.JsonRpcProvider(
@@ -17,11 +17,10 @@ export async function recordValidation(hash: string): Promise<string> {
       data: ethers.hexlify(ethers.toUtf8Bytes(hash)),
     });
     const receipt = await tx.wait();
-    if (!receipt) throw new Error("Transaction receipt is null");
+    if (!receipt) throw new Error('Transaction receipt is null');
     return receipt.hash;
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to record validation";
+    const message = error instanceof Error ? error.message : 'Failed to record validation';
     throw new Error(`Blockchain validation failed: ${message}`);
   }
 }

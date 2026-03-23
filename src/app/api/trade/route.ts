@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getETHPrice } from "@/lib/priceService";
-import { makeTradeDecision } from "@/lib/agent";
+import { makeTradeDecisionAsync } from "@/lib/agent";
 import { buildValidationArtifact } from "@/lib/erc8004";
 import { recordValidation } from "@/lib/blockchain";
 import { executeSwap } from "@/lib/uniswap";
+import { checkRiskLimits, recordSpend, getAgentStatus } from "@/lib/riskManager";
+import { getScore, updateScore } from "@/lib/reputationManager";
+import { getAgentCard } from "@/lib/identityRegistry";
 
 let previousPrice: number | null = null;
 
@@ -16,7 +19,7 @@ export async function GET(request: NextRequest) {
       previousPrice = currentPrice;
     }
 
-    const decision = makeTradeDecision(currentPrice, previousPrice);
+    const decision = await makeTradeDecisionAsync(currentPrice, previousPrice);
     const validation = buildValidationArtifact(decision);
 
     let txHash: string | null = null;
@@ -35,18 +38,31 @@ export async function GET(request: NextRequest) {
 
     let swapTxHash: string | null = null;
     let swapError: string | undefined;
+    let riskBlocked = false;
 
     if (decision.decision !== "HOLD") {
-      if (mock) {
+      const riskCheck = checkRiskLimits(0.001);
+
+      if (!riskCheck.allowed) {
+        riskBlocked = true;
+        swapError = riskCheck.reason;
+        updateScore("RISK_BLOCKED");
+      } else if (mock) {
         swapTxHash = `0xSWAP_MOCK_${Date.now()}`;
+        recordSpend(0.001);
+        updateScore("TRADE_EXECUTED");
       } else {
         try {
           swapTxHash = await executeSwap(decision.decision, 0.001);
+          recordSpend(0.001);
+          updateScore("TRADE_EXECUTED");
         } catch (err) {
           swapError =
             err instanceof Error ? err.message : "Swap execution failed";
         }
       }
+    } else {
+      updateScore("HOLD_STABLE");
     }
 
     previousPrice = currentPrice;
@@ -59,6 +75,10 @@ export async function GET(request: NextRequest) {
       ...(blockchainError && { blockchainError }),
       swapTxHash,
       ...(swapError && { swapError }),
+      riskBlocked,
+      agentStatus: getAgentStatus(),
+      reputationScore: getScore(),
+      agentIdentity: getAgentCard(),
     });
   } catch (error) {
     const message =
@@ -86,7 +106,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const decision = makeTradeDecision(body.currentPrice, body.previousPrice);
+    const decision = await makeTradeDecisionAsync(body.currentPrice, body.previousPrice);
     const validation = buildValidationArtifact(decision);
 
     return NextResponse.json({ ...decision, validation });

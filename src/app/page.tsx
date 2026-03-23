@@ -30,6 +30,25 @@ interface TradeDecision {
   currentPrice: number;
   txHash: string | null;
   validation?: ValidationArtifact;
+  agentStatus?: {
+    status: "ACTIVE" | "SUSPENDED";
+    dailySpent: number;
+    dailyLimit: number;
+    maxPerTrade: number;
+    riskMode: "Conservative" | "Normal" | "Aggressive";
+  };
+  reputationScore?: number;
+  agentIdentity?: {
+    name: string;
+    description: string;
+    version: string;
+    protocol: string;
+    capabilities: string[];
+    agentWallet: string | null;
+    registeredAt: string;
+  };
+  riskBlocked?: boolean;
+  aiPowered?: boolean;
 }
 
 const decisionColors: Record<string, { bg: string; text: string; ring: string }> = {
@@ -51,6 +70,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(30);
   const [modalItem, setModalItem] = useState<TradeDecision | null>(null);
+  const [identityModal, setIdentityModal] = useState(false);
 
   const fetchTrade = async () => {
     try {
@@ -121,6 +141,99 @@ export default function Home() {
           </div>
         ) : latest ? (
           <>
+            {/* Agent Status Banner */}
+            {latest.agentStatus && (
+              <div className={`flex items-center justify-between rounded-xl px-5 py-3 ${
+                latest.agentStatus.status === "ACTIVE"
+                  ? "bg-emerald-500/10 border border-emerald-500/30"
+                  : "bg-red-500/10 border border-red-500/30"
+              }`}>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${
+                    latest.agentStatus.status === "ACTIVE" ? "bg-emerald-500 animate-pulse" : "bg-red-500"
+                  }`} />
+                  <span className={`text-sm font-semibold ${
+                    latest.agentStatus.status === "ACTIVE" ? "text-emerald-400" : "text-red-400"
+                  }`}>
+                    Agent {latest.agentStatus.status === "ACTIVE" ? "Active" : "Suspended"}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setIdentityModal(true)}
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                >
+                  View Onchain Identity
+                </button>
+              </div>
+            )}
+
+            {/* Reputation / Risk Row */}
+            {latest.agentStatus && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Reputation Score */}
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Reputation Score</p>
+                  <p className={`text-4xl font-bold tracking-tight ${
+                    (latest.reputationScore ?? 50) > 70
+                      ? "text-emerald-400"
+                      : (latest.reputationScore ?? 50) >= 40
+                      ? "text-amber-400"
+                      : "text-red-400"
+                  }`}>
+                    {latest.reputationScore ?? 50}
+                  </p>
+                  <div className="mt-3 h-2 bg-gray-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        (latest.reputationScore ?? 50) > 70
+                          ? "bg-emerald-500"
+                          : (latest.reputationScore ?? 50) >= 40
+                          ? "bg-amber-500"
+                          : "bg-red-500"
+                      }`}
+                      style={{ width: `${latest.reputationScore ?? 50}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Risk Budget */}
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Risk Budget (Today)</p>
+                  <p className="text-2xl font-bold tracking-tight">
+                    {latest.agentStatus.dailySpent.toFixed(4)}
+                    <span className="text-gray-500 text-base font-normal"> / {latest.agentStatus.dailyLimit} ETH</span>
+                  </p>
+                  <div className="mt-3 h-2 bg-gray-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        latest.agentStatus.dailySpent / latest.agentStatus.dailyLimit > 0.8
+                          ? "bg-red-500"
+                          : latest.agentStatus.dailySpent / latest.agentStatus.dailyLimit > 0.5
+                          ? "bg-amber-500"
+                          : "bg-blue-500"
+                      }`}
+                      style={{ width: `${Math.min(100, (latest.agentStatus.dailySpent / latest.agentStatus.dailyLimit) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Risk Mode */}
+                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col items-center justify-center">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Risk Mode</p>
+                  <span className={`inline-flex items-center px-5 py-2 rounded-full text-lg font-bold ring-1 ${
+                    latest.agentStatus.riskMode === "Aggressive"
+                      ? "bg-emerald-500/20 text-emerald-400 ring-emerald-500/40"
+                      : latest.agentStatus.riskMode === "Conservative"
+                      ? "bg-red-500/20 text-red-400 ring-red-500/40"
+                      : "bg-blue-500/20 text-blue-400 ring-blue-500/40"
+                  }`}>
+                    {latest.agentStatus.riskMode}
+                  </span>
+                  <p className="text-xs text-gray-600 mt-2">Max {latest.agentStatus.maxPerTrade} ETH/trade</p>
+                </div>
+              </div>
+            )}
+
             {/* Top Cards Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* ETH Price Card */}
@@ -141,6 +254,9 @@ export default function Home() {
                   className={`inline-flex items-center px-5 py-2 rounded-full text-xl font-bold ring-1 ${decisionColors[latest.decision].bg} ${decisionColors[latest.decision].text} ${decisionColors[latest.decision].ring}`}
                 >
                   {latest.decision}
+                </span>
+                <span className={`mt-2 text-xs font-medium px-2 py-0.5 rounded ${latest.aiPowered ? 'bg-purple-500/20 text-purple-400' : 'bg-gray-700/50 text-gray-400'}`}>
+                  {latest.aiPowered ? '✦ Gemini AI' : '⚙ Rule-Based'}
                 </span>
               </div>
 
@@ -208,7 +324,7 @@ export default function Home() {
                           color: "#f3f4f6",
                           fontSize: 13,
                         }}
-                        formatter={(value: number) => [`$${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, "ETH Price"]}
+                        formatter={(value) => [`$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2 })}`, "ETH Price"]}
                       />
                       <Area
                         type="monotone"
@@ -387,6 +503,83 @@ export default function Home() {
             {/* Explanation */}
             <p className="text-xs text-gray-500 leading-relaxed">
               This decision was cryptographically signed and recorded on-chain. The hash proves this exact decision was made at this exact time and cannot be altered.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Identity Modal */}
+      {identityModal && latest?.agentIdentity && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setIdentityModal(false)}
+        >
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-gray-100">Onchain Agent Identity</h2>
+              <button
+                onClick={() => setIdentityModal(false)}
+                className="text-gray-500 hover:text-gray-300 transition-colors cursor-pointer text-xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 mb-6 bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-3">
+              <svg className="w-6 h-6 text-blue-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+              </svg>
+              <span className="text-blue-400 font-semibold">{latest.agentIdentity.name}</span>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between items-start gap-4">
+                <span className="text-xs text-gray-500 uppercase shrink-0">Description</span>
+                <span className="text-sm text-gray-300 text-right">{latest.agentIdentity.description}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-gray-500 uppercase">Version</span>
+                <span className="text-sm text-gray-300">{latest.agentIdentity.version}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-gray-500 uppercase">Protocol</span>
+                <span className="text-sm text-gray-300">{latest.agentIdentity.protocol}</span>
+              </div>
+              <div className="flex justify-between items-start gap-4">
+                <span className="text-xs text-gray-500 uppercase shrink-0">Capabilities</span>
+                <div className="flex flex-wrap gap-1 justify-end">
+                  {latest.agentIdentity.capabilities.map((cap) => (
+                    <span key={cap} className="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
+                      {cap}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-gray-500 uppercase">Registered</span>
+                <span className="text-sm text-gray-300">{new Date(latest.agentIdentity.registeredAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+
+            {latest.agentIdentity.agentWallet && (
+              <div className="mb-6">
+                <p className="text-xs text-gray-500 uppercase mb-1">Agent Wallet</p>
+                <a
+                  href={`https://sepolia.etherscan.io/address/${latest.agentIdentity.agentWallet}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-mono text-blue-400 hover:text-blue-300 bg-gray-800 rounded-lg px-3 py-2 break-all block transition-colors"
+                >
+                  {latest.agentIdentity.agentWallet}
+                </a>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500 leading-relaxed">
+              This agent identity is registered on-chain via ERC-8004. All trading decisions are cryptographically linked to this identity.
             </p>
           </div>
         </div>

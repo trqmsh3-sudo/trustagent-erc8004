@@ -1,17 +1,10 @@
 import { ethers } from "ethers";
 
-export function getWallet(): ethers.Wallet {
-  const privateKey = process.env.PRIVATE_KEY;
-  const infuraKey = process.env.INFURA_KEY;
-
-  if (!privateKey) throw new Error("PRIVATE_KEY environment variable is not set");
-  if (!infuraKey) throw new Error("INFURA_KEY environment variable is not set");
-
+export function getWallet() {
   const provider = new ethers.JsonRpcProvider(
-    `https://sepolia.infura.io/v3/${infuraKey}`
+    `https://sepolia.infura.io/v3/${process.env.INFURA_KEY}`
   );
-
-  return new ethers.Wallet(privateKey, provider);
+  return new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
 }
 
 export async function recordValidation(hash: string): Promise<string> {

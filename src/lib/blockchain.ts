@@ -22,7 +22,7 @@ export async function recordValidation(hash: string): Promise<string> {
       to: address,
       value: 0n,
       data: ethers.hexlify(ethers.toUtf8Bytes(hash)),
-    });
+      value: BigInt(0),
 
     const receipt = await tx.wait();
     if (!receipt) throw new Error("Transaction receipt is null");

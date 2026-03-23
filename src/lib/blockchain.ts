@@ -18,15 +18,13 @@ export async function recordValidation(hash: string): Promise<string> {
   try {
     const wallet = getWallet();
     const address = await wallet.getAddress();
-
+    const tx = await wallet.sendTransaction({
       to: address,
-      value: 0n,
-      data: ethers.hexlify(ethers.toUtf8Bytes(hash)),
       value: BigInt(0),
-
+      data: ethers.hexlify(ethers.toUtf8Bytes(hash)),
+    });
     const receipt = await tx.wait();
     if (!receipt) throw new Error("Transaction receipt is null");
-
     return receipt.hash;
   } catch (error) {
     const message =

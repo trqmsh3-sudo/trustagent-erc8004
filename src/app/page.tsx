@@ -101,6 +101,17 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const ping = () => {
+      void fetch("/api/ping", { cache: "no-store" });
+    };
+
+    ping();
+    const interval = setInterval(ping, 10 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
       {/* Header */}

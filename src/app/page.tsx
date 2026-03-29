@@ -490,9 +490,20 @@ export default function Home() {
             {modalItem.validation && (
               <div className="mb-6">
                 <p className="text-xs text-gray-500 uppercase mb-1">Validation Hash (SHA-256)</p>
-                <p className="text-xs font-mono text-blue-400 bg-gray-800 rounded-lg px-3 py-2 break-all">
-                  {modalItem.validation.hash}
-                </p>
+                {modalItem.txHash ? (
+                  <a
+                    href={`https://sepolia.etherscan.io/tx/${modalItem.txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-xs font-mono text-blue-400 hover:text-blue-300 bg-gray-800 rounded-lg px-3 py-2 break-all underline-offset-2 hover:underline cursor-pointer"
+                  >
+                    {modalItem.validation.hash}
+                  </a>
+                ) : (
+                  <p className="text-xs font-mono text-blue-400 bg-gray-800 rounded-lg px-3 py-2 break-all">
+                    {modalItem.validation.hash}
+                  </p>
+                )}
               </div>
             )}
 

@@ -72,6 +72,15 @@ export default function Home() {
   const [modalItem, setModalItem] = useState<TradeDecision | null>(null);
   const [identityModal, setIdentityModal] = useState(false);
 
+  const verifyEtherscanHref =
+    modalItem == null
+      ? null
+      : modalItem.txHash
+        ? `https://sepolia.etherscan.io/tx/${modalItem.txHash}`
+        : modalItem.validation
+          ? `https://sepolia.etherscan.io/search?q=${encodeURIComponent(modalItem.validation.hash)}`
+          : "https://sepolia.etherscan.io/";
+
   const fetchTrade = async () => {
     try {
       setError(null);
@@ -490,27 +499,25 @@ export default function Home() {
             {modalItem.validation && (
               <div className="mb-6">
                 <p className="text-xs text-gray-500 uppercase mb-1">Validation Hash (SHA-256)</p>
-                {modalItem.txHash ? (
-                  <a
-                    href={`https://sepolia.etherscan.io/tx/${modalItem.txHash}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-xs font-mono text-blue-400 hover:text-blue-300 bg-gray-800 rounded-lg px-3 py-2 break-all underline-offset-2 hover:underline cursor-pointer"
-                  >
-                    {modalItem.validation.hash}
-                  </a>
-                ) : (
-                  <p className="text-xs font-mono text-blue-400 bg-gray-800 rounded-lg px-3 py-2 break-all">
-                    {modalItem.validation.hash}
-                  </p>
-                )}
+                <a
+                  href={
+                    modalItem.txHash
+                      ? `https://sepolia.etherscan.io/tx/${modalItem.txHash}`
+                      : `https://sepolia.etherscan.io/search?q=${encodeURIComponent(modalItem.validation.hash)}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-xs font-mono text-blue-400 hover:text-blue-300 bg-gray-800 rounded-lg px-3 py-2 break-all underline-offset-2 hover:underline cursor-pointer"
+                >
+                  {modalItem.validation.hash}
+                </a>
               </div>
             )}
 
             {/* Etherscan Link */}
-            {modalItem.txHash && (
+            {verifyEtherscanHref && (
               <a
-                href={`https://sepolia.etherscan.io/tx/${modalItem.txHash}`}
+                href={verifyEtherscanHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 w-full bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 text-blue-400 rounded-xl px-4 py-3 text-sm font-medium transition-colors mb-6"
@@ -518,7 +525,11 @@ export default function Home() {
                 <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
                   <path d="M8 0L6.59 1.41 12.17 7H0v2h12.17l-5.58 5.59L8 16l8-8-8-8z" />
                 </svg>
-                View Transaction on Etherscan
+                {modalItem.txHash
+                  ? "View Transaction on Etherscan"
+                  : modalItem.validation
+                    ? "Search on Etherscan"
+                    : "View on Etherscan"}
               </a>
             )}
 

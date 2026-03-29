@@ -85,7 +85,9 @@ export default function Home() {
     try {
       setError(null);
       const res = await fetch("/api/trade");
-      if (!res.ok) throw new Error("API request failed");
+      if (!res.ok) {
+        throw new Error("Loading market data... (first load may take 30 seconds)");
+      }
       const data: TradeDecision = await res.json();
       setLatest(data);
       setHistory((prev) => [data, ...prev].slice(0, 10));
@@ -157,7 +159,12 @@ export default function Home() {
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-pulse text-gray-500 text-lg">Loading market data...</div>
+            <div className="flex items-center gap-3 text-gray-500 text-lg">
+              <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-400 rounded-full animate-spin" />
+              <span className="animate-pulse">
+                Loading market data... (first load may take 30 seconds)
+              </span>
+            </div>
           </div>
         ) : latest ? (
           <>
